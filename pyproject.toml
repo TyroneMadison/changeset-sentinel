@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "changeset-sentinel"
+version = "1.0.0"
+description = "AI-assisted risk review for CloudFormation change sets, built for GitHub pull requests."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Tyrone Madison" }]
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.35",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+
+[project.scripts]
+changeset-sentinel = "sentinel.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["sentinel*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["out"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "C4", "PT"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
