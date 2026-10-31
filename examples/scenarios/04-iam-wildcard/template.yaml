@@ -1,0 +1,221 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Scenario 04 (PR): hotfix that grants the app role admin access and hardcodes a partner token.
+  changeset-sentinel demo stack. A small app tier (bucket, database, security group,
+  role) that produces realistic change sets for review.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC for the app tier. The default VPC works for the demo.
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two subnets in different Availability Zones for the database.
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+  CostCenter:
+    Type: String
+    Default: platform
+  AllowedCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+    Description: Internal range allowed to reach the app tier over HTTPS.
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Resources:
+  AppBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_18
+            comment: Demo stack. Account level CloudTrail S3 data events cover audit; a log bucket would double the footprint.
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App tier. HTTPS from the internal range only.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedCidr
+          Description: HTTPS from internal network
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedCidr
+          Description: HTTPS to internal services
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database. MySQL from the app tier only.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt AppSecurityGroup.GroupId
+          Description: MySQL from app tier
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedCidr
+          Description: HTTPS to internal services
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets for the demo database.
+      SubnetIds: !Ref SubnetIds
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  AppDatabase:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_118
+            comment: Enhanced monitoring needs an extra IAM role; CloudWatch log exports cover the demo.
+          - id: CKV_AWS_293
+            comment: Deletion protection follows the IsProd condition, which static analysis cannot resolve.
+          - id: CKV_AWS_157
+            comment: Multi-AZ follows the IsProd condition; a single AZ keeps the demo cheap.
+          - id: CKV_AWS_354
+            comment: Performance Insights is not available on db.t4g.micro.
+    Properties:
+      Engine: mysql
+      EngineVersion: "8.4"
+      DBInstanceClass: db.t4g.micro
+      AllocatedStorage: "20"
+      StorageType: gp3
+      StorageEncrypted: true
+      MasterUsername: appadmin
+      ManageMasterUserPassword: true
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      DeletionProtection: !If [IsProd, true, false]
+      MultiAZ: !If [IsProd, true, false]
+      PubliclyAccessible: false
+      AutoMinorVersionUpgrade: true
+      EnableIAMDatabaseAuthentication: true
+      EnableCloudwatchLogsExports: [error, slowquery]
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  AppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Runtime role for the demo app.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  AppPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Least privilege access to the app bucket.
+      Roles:
+        - !Ref AppRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: HotfixUnblockDeploy
+            Effect: Allow
+            Action: "*"
+            Resource: "*"
+
+  HotfixFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Hotfix sync job.
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt AppRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          PARTNER_API_URL: https://partner.example.com/v1
+          PARTNER_API_TOKEN: pk_demo_9f8e7d6c5b4a3210
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {"status": "ok"}
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+Outputs:
+  BucketName:
+    Value: !Ref AppBucket
+  DatabaseEndpoint:
+    Value: !GetAtt AppDatabase.Endpoint.Address
+  AppSecurityGroupId:
+    Value: !GetAtt AppSecurityGroup.GroupId
+  AppRoleArn:
+    Value: !GetAtt AppRole.Arn

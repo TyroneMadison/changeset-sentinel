@@ -1,0 +1,98 @@
+{
+  "Changes": [
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Modify",
+        "LogicalResourceId": "AppBucket",
+        "PhysicalResourceId": "sentinel-demo-app-appbucket-1a2b3c4d5e6f",
+        "ResourceType": "AWS::S3::Bucket",
+        "Replacement": "False",
+        "Scope": [
+          "Tags"
+        ],
+        "Details": [
+          {
+            "Target": {
+              "Attribute": "Tags",
+              "RequiresRecreation": "Never",
+              "Path": "/Properties/Tags/4",
+              "AfterValue": "{\"Key\": \"DataClassification\", \"Value\": \"internal\"}",
+              "AttributeChangeType": "Add"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          }
+        ],
+        "BeforeContext": "{\"Properties\":{\"BucketEncryption\":{\"ServerSideEncryptionConfiguration\":[{\"ServerSideEncryptionByDefault\":{\"SSEAlgorithm\":\"aws:kms\"},\"BucketKeyEnabled\":true}]},\"PublicAccessBlockConfiguration\":{\"BlockPublicAcls\":true,\"BlockPublicPolicy\":true,\"IgnorePublicAcls\":true,\"RestrictPublicBuckets\":true},\"OwnershipControls\":{\"Rules\":[{\"ObjectOwnership\":\"BucketOwnerEnforced\"}]},\"VersioningConfiguration\":{\"Status\":\"Enabled\"},\"Tags\":[{\"Key\":\"Project\",\"Value\":\"changeset-sentinel\"},{\"Key\":\"Owner\",\"Value\":\"TyroneMadison\"},{\"Key\":\"Environment\",\"Value\":\"dev\"},{\"Key\":\"CostCenter\",\"Value\":\"platform\"}]}}",
+        "AfterContext": "{\"Properties\":{\"BucketEncryption\":{\"ServerSideEncryptionConfiguration\":[{\"ServerSideEncryptionByDefault\":{\"SSEAlgorithm\":\"aws:kms\"},\"BucketKeyEnabled\":true}]},\"PublicAccessBlockConfiguration\":{\"BlockPublicAcls\":true,\"BlockPublicPolicy\":true,\"IgnorePublicAcls\":true,\"RestrictPublicBuckets\":true},\"OwnershipControls\":{\"Rules\":[{\"ObjectOwnership\":\"BucketOwnerEnforced\"}]},\"VersioningConfiguration\":{\"Status\":\"Enabled\"},\"Tags\":[{\"Key\":\"Project\",\"Value\":\"changeset-sentinel\"},{\"Key\":\"Owner\",\"Value\":\"TyroneMadison\"},{\"Key\":\"Environment\",\"Value\":\"dev\"},{\"Key\":\"CostCenter\",\"Value\":\"platform\"},{\"Key\":\"DataClassification\",\"Value\":\"internal\"}]}}"
+      }
+    },
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Modify",
+        "LogicalResourceId": "AppDatabase",
+        "PhysicalResourceId": "sentinel-demo-app-appdatabase-kq81nzt0w7xe",
+        "ResourceType": "AWS::RDS::DBInstance",
+        "Replacement": "False",
+        "Scope": [
+          "Tags"
+        ],
+        "Details": [
+          {
+            "Target": {
+              "Attribute": "Tags",
+              "RequiresRecreation": "Never",
+              "Path": "/Properties/Tags/4",
+              "AfterValue": "{\"Key\": \"DataClassification\", \"Value\": \"internal\"}",
+              "AttributeChangeType": "Add"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          }
+        ],
+        "BeforeContext": "{\"Properties\":{\"Engine\":\"mysql\",\"EngineVersion\":\"8.4\",\"DBInstanceClass\":\"db.t4g.micro\",\"AllocatedStorage\":\"20\",\"StorageType\":\"gp3\",\"StorageEncrypted\":true,\"MasterUsername\":\"appadmin\",\"ManageMasterUserPassword\":true,\"BackupRetentionPeriod\":7,\"CopyTagsToSnapshot\":true,\"DeletionProtection\":false,\"MultiAZ\":false,\"PubliclyAccessible\":false,\"AutoMinorVersionUpgrade\":true,\"EnableIAMDatabaseAuthentication\":true,\"EnableCloudwatchLogsExports\":[\"error\",\"slowquery\"],\"DBSubnetGroupName\":\"sentinel-demo-app-databasesubnetgroup-x1y2z3\",\"VPCSecurityGroups\":[\"sg-0db1c2d3e4f5a6b70\"],\"Tags\":[{\"Key\":\"Project\",\"Value\":\"changeset-sentinel\"},{\"Key\":\"Owner\",\"Value\":\"TyroneMadison\"},{\"Key\":\"Environment\",\"Value\":\"dev\"},{\"Key\":\"CostCenter\",\"Value\":\"platform\"}]}}",
+        "AfterContext": "{\"Properties\":{\"Engine\":\"mysql\",\"EngineVersion\":\"8.4\",\"DBInstanceClass\":\"db.t4g.micro\",\"AllocatedStorage\":\"20\",\"StorageType\":\"gp3\",\"StorageEncrypted\":true,\"MasterUsername\":\"appadmin\",\"ManageMasterUserPassword\":true,\"BackupRetentionPeriod\":7,\"CopyTagsToSnapshot\":true,\"DeletionProtection\":false,\"MultiAZ\":false,\"PubliclyAccessible\":false,\"AutoMinorVersionUpgrade\":true,\"EnableIAMDatabaseAuthentication\":true,\"EnableCloudwatchLogsExports\":[\"error\",\"slowquery\"],\"DBSubnetGroupName\":\"sentinel-demo-app-databasesubnetgroup-x1y2z3\",\"VPCSecurityGroups\":[\"sg-0db1c2d3e4f5a6b70\"],\"Tags\":[{\"Key\":\"Project\",\"Value\":\"changeset-sentinel\"},{\"Key\":\"Owner\",\"Value\":\"TyroneMadison\"},{\"Key\":\"Environment\",\"Value\":\"dev\"},{\"Key\":\"CostCenter\",\"Value\":\"platform\"},{\"Key\":\"DataClassification\",\"Value\":\"internal\"}]}}"
+      }
+    }
+  ],
+  "ChangeSetName": "sentinel-1180142117-1",
+  "ChangeSetId": "arn:aws:cloudformation:us-east-2:123456789012:changeSet/sentinel-1180142117-1/3e5b8c1d-2a4f-4b6e-9d7c-01f1e2d3c4b5",
+  "StackId": "arn:aws:cloudformation:us-east-2:123456789012:stack/sentinel-demo-app/7c1e9a40-6f0d-11f1-9b2e-0a1b2c3d4e5f",
+  "StackName": "sentinel-demo-app",
+  "Parameters": [
+    {
+      "ParameterKey": "VpcId",
+      "ParameterValue": "vpc-0a1b2c3d4e5f60718"
+    },
+    {
+      "ParameterKey": "SubnetIds",
+      "ParameterValue": "subnet-0a1b2c3d4e5f60001,subnet-0a1b2c3d4e5f60002"
+    },
+    {
+      "ParameterKey": "Environment",
+      "ParameterValue": "dev"
+    },
+    {
+      "ParameterKey": "CostCenter",
+      "ParameterValue": "platform"
+    },
+    {
+      "ParameterKey": "AllowedCidr",
+      "ParameterValue": "10.0.0.0/16"
+    }
+  ],
+  "CreationTime": "2026-10-31T14:01:12.418000+00:00",
+  "ExecutionStatus": "AVAILABLE",
+  "Status": "CREATE_COMPLETE",
+  "NotificationARNs": [],
+  "RollbackConfiguration": {},
+  "Capabilities": [
+    "CAPABILITY_IAM",
+    "CAPABILITY_NAMED_IAM",
+    "CAPABILITY_AUTO_EXPAND"
+  ],
+  "Tags": [],
+  "IncludeNestedStacks": false
+}

@@ -1,0 +1,7 @@
+[
+  { "ParameterKey": "VpcId", "ParameterValue": "vpc-REPLACE_WITH_YOUR_DEFAULT_VPC_ID" },
+  { "ParameterKey": "SubnetIds", "ParameterValue": "subnet-REPLACE_AZ_A,subnet-REPLACE_AZ_B" },
+  { "ParameterKey": "Environment", "ParameterValue": "dev" },
+  { "ParameterKey": "CostCenter", "ParameterValue": "platform" },
+  { "ParameterKey": "AllowedCidr", "ParameterValue": "10.0.0.0/16" }
+]

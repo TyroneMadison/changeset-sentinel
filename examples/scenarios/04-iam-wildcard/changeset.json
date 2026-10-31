@@ -1,0 +1,83 @@
+{
+  "Changes": [
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Modify",
+        "LogicalResourceId": "AppPolicy",
+        "PhysicalResourceId": "arn:aws:iam::123456789012:policy/sentinel-demo-app-AppPolicy-Zx9Yw8Vu7T6s",
+        "ResourceType": "AWS::IAM::ManagedPolicy",
+        "Replacement": "False",
+        "Scope": [
+          "Properties"
+        ],
+        "Details": [
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "PolicyDocument",
+              "RequiresRecreation": "Never",
+              "Path": "/Properties/PolicyDocument",
+              "BeforeValue": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"AppBucketObjects\", \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::sentinel-demo-app-appbucket-1a2b3c4d5e6f/*\"}]}",
+              "AfterValue": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"HotfixUnblockDeploy\", \"Effect\": \"Allow\", \"Action\": \"*\", \"Resource\": \"*\"}]}",
+              "AttributeChangeType": "Modify"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          }
+        ],
+        "BeforeContext": "{\"Properties\":{\"Description\":\"Least privilege access to the app bucket.\",\"Roles\":[\"sentinel-demo-app-AppRole-9QwErTy12345\"],\"PolicyDocument\":{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"AppBucketObjects\",\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\"],\"Resource\":\"arn:aws:s3:::sentinel-demo-app-appbucket-1a2b3c4d5e6f/*\"}]}}}",
+        "AfterContext": "{\"Properties\":{\"Description\":\"Least privilege access to the app bucket.\",\"Roles\":[\"sentinel-demo-app-AppRole-9QwErTy12345\"],\"PolicyDocument\":{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"HotfixUnblockDeploy\",\"Effect\":\"Allow\",\"Action\":\"*\",\"Resource\":\"*\"}]}}}"
+      }
+    },
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Add",
+        "LogicalResourceId": "HotfixFunction",
+        "ResourceType": "AWS::Lambda::Function",
+        "Scope": [],
+        "Details": [],
+        "AfterContext": "{\"Properties\":{\"Description\":\"Hotfix sync job.\",\"Runtime\":\"python3.12\",\"Handler\":\"index.handler\",\"Role\":\"arn:aws:iam::123456789012:role/sentinel-demo-app-AppRole-9QwErTy12345\",\"Timeout\":30,\"Environment\":{\"Variables\":{\"PARTNER_API_URL\":\"https://partner.example.com/v1\",\"PARTNER_API_TOKEN\":\"pk_demo_9f8e7d6c5b4a3210\"}},\"Code\":{\"ZipFile\":\"def handler(event, context):\\n    return {\\\"status\\\": \\\"ok\\\"}\\n\"},\"Tags\":[{\"Key\":\"Project\",\"Value\":\"changeset-sentinel\"},{\"Key\":\"Owner\",\"Value\":\"TyroneMadison\"},{\"Key\":\"Environment\",\"Value\":\"dev\"},{\"Key\":\"CostCenter\",\"Value\":\"platform\"}]}}"
+      }
+    }
+  ],
+  "ChangeSetName": "sentinel-1180442417-1",
+  "ChangeSetId": "arn:aws:cloudformation:us-east-2:123456789012:changeSet/sentinel-1180442417-1/3e5b8c1d-2a4f-4b6e-9d7c-04f1e2d3c4b5",
+  "StackId": "arn:aws:cloudformation:us-east-2:123456789012:stack/sentinel-demo-app/7c1e9a40-6f0d-11f1-9b2e-0a1b2c3d4e5f",
+  "StackName": "sentinel-demo-app",
+  "Parameters": [
+    {
+      "ParameterKey": "VpcId",
+      "ParameterValue": "vpc-0a1b2c3d4e5f60718"
+    },
+    {
+      "ParameterKey": "SubnetIds",
+      "ParameterValue": "subnet-0a1b2c3d4e5f60001,subnet-0a1b2c3d4e5f60002"
+    },
+    {
+      "ParameterKey": "Environment",
+      "ParameterValue": "dev"
+    },
+    {
+      "ParameterKey": "CostCenter",
+      "ParameterValue": "platform"
+    },
+    {
+      "ParameterKey": "AllowedCidr",
+      "ParameterValue": "10.0.0.0/16"
+    }
+  ],
+  "CreationTime": "2026-10-31T14:04:12.418000+00:00",
+  "ExecutionStatus": "AVAILABLE",
+  "Status": "CREATE_COMPLETE",
+  "NotificationARNs": [],
+  "RollbackConfiguration": {},
+  "Capabilities": [
+    "CAPABILITY_IAM",
+    "CAPABILITY_NAMED_IAM",
+    "CAPABILITY_AUTO_EXPAND"
+  ],
+  "Tags": [],
+  "IncludeNestedStacks": false
+}
