@@ -1,0 +1,71 @@
+name: Sentinel policy scan
+description: >-
+  Static checks on a CloudFormation template: cfn-lint for correctness, cfn-guard
+  for organization policy, and Trivy for known misconfigurations.
+author: Tyrone Madison
+
+inputs:
+  template-path:
+    description: Template file or directory to scan.
+    required: true
+  guard-rules:
+    description: Directory of .guard rules. Defaults to the rules bundled with this action.
+    required: false
+    default: ""
+  cfn-lint-version:
+    description: Pinned cfn-lint version.
+    required: false
+    default: "1.59.0"
+  guard-version:
+    description: Pinned cfn-guard version, built from crates.io.
+    required: false
+    default: "3.2.1"
+  trivy-severity:
+    description: >-
+      Trivy severities that fail the scan. Starts at CRITICAL so an existing estate is not
+      blocked on day one; raise to HIGH,CRITICAL once the baseline is clean.
+    required: false
+    default: CRITICAL
+
+runs:
+  using: composite
+  steps:
+    - name: cfn-lint
+      shell: bash
+      env:
+        TEMPLATE_PATH: ${{ inputs.template-path }}
+        CFN_LINT_VERSION: ${{ inputs.cfn-lint-version }}
+      run: |
+        python -m pip install --disable-pip-version-check --quiet "cfn-lint==${CFN_LINT_VERSION}"
+        cfn-lint "$TEMPLATE_PATH"
+
+    - name: Install cfn-guard
+      if: ${{ always() }}
+      shell: bash
+      env:
+        GUARD_VERSION: ${{ inputs.guard-version }}
+      run: |
+        if ! command -v cfn-guard >/dev/null; then
+          cargo install cfn-guard --version "$GUARD_VERSION" --locked --quiet
+        fi
+        cfn-guard --version
+
+    - name: cfn-guard
+      if: ${{ always() }}
+      shell: bash
+      env:
+        TEMPLATE_PATH: ${{ inputs.template-path }}
+        RULES: ${{ inputs.guard-rules }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        RULES_DIR="${RULES:-$ACTION_PATH/../../policy/rules}"
+        cfn-guard validate --data "$TEMPLATE_PATH" --rules "$RULES_DIR" --show-summary fail
+
+    - name: Trivy config scan
+      if: ${{ always() }}
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        scan-type: config
+        scan-ref: ${{ inputs.template-path }}
+        severity: ${{ inputs.trivy-severity }}
+        exit-code: "1"

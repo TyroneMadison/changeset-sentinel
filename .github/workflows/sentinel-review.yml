@@ -1,0 +1,148 @@
+name: sentinel-review
+
+# Reusable workflow. Call it from any repo that ships CloudFormation:
+#   uses: TyroneMadison/changeset-sentinel/.github/workflows/sentinel-review.yml@v1
+# Composite actions are referenced at @v1 so callers get a matching set.
+
+on:
+  workflow_call:
+    inputs:
+      template-path:
+        description: CloudFormation template to review.
+        type: string
+        required: true
+      stack-name:
+        description: Stack the template deploys to.
+        type: string
+        required: true
+      role-to-assume:
+        description: IAM role ARN from bootstrap/github-oidc.yaml (review only, cannot execute).
+        type: string
+        required: true
+      aws-region:
+        type: string
+        default: us-east-2
+      parameters-file:
+        description: Optional CloudFormation parameters JSON file.
+        type: string
+        default: ""
+      risk-threshold:
+        description: LOW, MEDIUM, HIGH, CRITICAL or NONE.
+        type: string
+        default: HIGH
+      llm-provider:
+        description: bedrock, anthropic or none.
+        type: string
+        default: bedrock
+      model-id:
+        type: string
+        default: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+      approval-label:
+        type: string
+        default: risk-accepted
+      allowlist-policy:
+        description: Org allowlist policy file in the caller repo. Empty uses the bundled example.
+        type: string
+        default: ""
+      runs-on:
+        description: Runner label. For CodeBuild managed runners pass codebuild-PROJECT-RUN_ID-RUN_ATTEMPT.
+        type: string
+        default: ubuntu-latest
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+    outputs:
+      risk-level:
+        description: Final risk level.
+        value: ${{ jobs.review.outputs.risk-level }}
+
+permissions: {}
+
+jobs:
+  review:
+    name: Change set review
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 20
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      issues: read
+    outputs:
+      risk-level: ${{ steps.review.outputs.risk-level }}
+    steps:
+      - name: Check out caller repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Actions allowlist
+        id: allowlist
+        continue-on-error: true
+        uses: TyroneMadison/changeset-sentinel/actions/allowlist@v1
+        with:
+          policy-file: ${{ inputs.allowlist-policy }}
+
+      - name: Policy scan
+        id: policy
+        continue-on-error: true
+        uses: TyroneMadison/changeset-sentinel/actions/policy-scan@v1
+        with:
+          template-path: ${{ inputs.template-path }}
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.role-to-assume }}
+          aws-region: ${{ inputs.aws-region }}
+          role-session-name: changeset-sentinel-${{ github.run_id }}
+
+      - name: Create change set (review only)
+        id: changeset
+        uses: TyroneMadison/changeset-sentinel/actions/changeset@v1
+        with:
+          template-path: ${{ inputs.template-path }}
+          stack-name: ${{ inputs.stack-name }}
+          parameters-file: ${{ inputs.parameters-file }}
+
+      - name: AI review and merge gate
+        id: review
+        continue-on-error: true
+        uses: TyroneMadison/changeset-sentinel/actions/ai-review@v1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          changeset-file: ${{ steps.changeset.outputs.changeset-file }}
+          risk-threshold: ${{ inputs.risk-threshold }}
+          llm-provider: ${{ inputs.llm-provider }}
+          model-id: ${{ inputs.model-id }}
+          approval-label: ${{ inputs.approval-label }}
+          github-token: ${{ github.token }}
+          checks: |
+            Actions allowlist=${{ steps.allowlist.outcome }}
+            Policy scan=${{ steps.policy.outcome }}
+
+      - name: Enforce results
+        if: ${{ always() }}
+        shell: bash
+        env:
+          ALLOWLIST: ${{ steps.allowlist.outcome }}
+          POLICY: ${{ steps.policy.outcome }}
+          CHANGESET: ${{ steps.changeset.outcome }}
+          REVIEW: ${{ steps.review.outcome }}
+        run: |
+          failed=0
+          for pair in "Actions allowlist:$ALLOWLIST" "Policy scan:$POLICY" \
+                      "Change set:$CHANGESET" "Risk gate:$REVIEW"; do
+            name="${pair%%:*}"; outcome="${pair##*:}"
+            if [[ "$outcome" != "success" ]]; then
+              echo "::error::$name: $outcome"
+              failed=1
+            fi
+          done
+          exit "$failed"

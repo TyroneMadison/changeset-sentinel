@@ -1,0 +1,26 @@
+#
+# IAM: no Allow statement may grant every action on every resource.
+#
+let iam_policies = Resources.*[
+    Type IN ['AWS::IAM::Policy', 'AWS::IAM::ManagedPolicy']
+]
+let iam_roles_with_inline = Resources.*[
+    Type == 'AWS::IAM::Role'
+    Properties.Policies exists
+]
+
+rule IAM_NO_ADMIN_WILDCARD_POLICY when %iam_policies !empty {
+    %iam_policies.Properties.PolicyDocument.Statement[*] {
+        Effect == 'Deny' or
+        Action[*] != '*' or
+        Resource[*] != '*' <<IAM policy grants Action * on Resource *, which is administrator access>>
+    }
+}
+
+rule IAM_NO_ADMIN_WILDCARD_INLINE when %iam_roles_with_inline !empty {
+    %iam_roles_with_inline.Properties.Policies[*].PolicyDocument.Statement[*] {
+        Effect == 'Deny' or
+        Action[*] != '*' or
+        Resource[*] != '*' <<Inline role policy grants Action * on Resource *>>
+    }
+}

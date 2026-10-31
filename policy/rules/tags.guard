@@ -1,0 +1,22 @@
+#
+# Cost and ownership: core resources carry Project and Environment tags.
+#
+let taggable = Resources.*[
+    Type IN ['AWS::S3::Bucket',
+             'AWS::RDS::DBInstance',
+             'AWS::RDS::DBCluster',
+             'AWS::DynamoDB::Table',
+             'AWS::Lambda::Function',
+             'AWS::EC2::SecurityGroup',
+             'AWS::IAM::Role',
+             'AWS::SQS::Queue',
+             'AWS::SNS::Topic']
+]
+
+rule REQUIRED_TAGS when %taggable !empty {
+    %taggable {
+        Properties.Tags exists <<Resource has no Tags>>
+        some Properties.Tags[*].Key == 'Project' <<Resource is missing the Project tag>>
+        some Properties.Tags[*].Key == 'Environment' <<Resource is missing the Environment tag>>
+    }
+}

@@ -1,0 +1,18 @@
+#
+# S3 buckets: default encryption on, all public access blocked.
+#
+let s3_buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+
+rule S3_BUCKET_DEFAULT_ENCRYPTION when %s3_buckets !empty {
+    %s3_buckets.Properties.BucketEncryption.ServerSideEncryptionConfiguration[*].ServerSideEncryptionByDefault.SSEAlgorithm IN ['AES256', 'aws:kms', 'aws:kms:dsse']
+    <<S3 buckets must enable default encryption (SSEAlgorithm aws:kms or AES256)>>
+}
+
+rule S3_BUCKET_PUBLIC_ACCESS_BLOCKED when %s3_buckets !empty {
+    %s3_buckets.Properties.PublicAccessBlockConfiguration {
+        BlockPublicAcls == true <<S3 buckets must set BlockPublicAcls to true>>
+        BlockPublicPolicy == true <<S3 buckets must set BlockPublicPolicy to true>>
+        IgnorePublicAcls == true <<S3 buckets must set IgnorePublicAcls to true>>
+        RestrictPublicBuckets == true <<S3 buckets must set RestrictPublicBuckets to true>>
+    }
+}

@@ -1,0 +1,46 @@
+name: Sentinel change set
+description: >-
+  Creates a CloudFormation change set for review, saves describe-change-set output
+  as JSON, and always deletes the change set. It never executes anything.
+author: Tyrone Madison
+
+inputs:
+  template-path:
+    description: Path to the CloudFormation template in the calling repository.
+    required: true
+  stack-name:
+    description: Target stack name.
+    required: true
+  parameters-file:
+    description: Optional JSON parameters file (ParameterKey and ParameterValue list).
+    required: false
+    default: ""
+  output-file:
+    description: Where to write the change set JSON. Defaults to the runner temp dir.
+    required: false
+    default: ""
+
+outputs:
+  changeset-file:
+    description: Path of the saved describe-change-set JSON.
+    value: ${{ steps.create.outputs.changeset-file }}
+  change-count:
+    description: Number of resource changes.
+    value: ${{ steps.create.outputs.change-count }}
+  changeset-type:
+    description: CREATE or UPDATE.
+    value: ${{ steps.create.outputs.changeset-type }}
+
+runs:
+  using: composite
+  steps:
+    - name: Create, describe and delete the change set
+      id: create
+      shell: bash
+      env:
+        INPUT_TEMPLATE_PATH: ${{ inputs.template-path }}
+        INPUT_STACK_NAME: ${{ inputs.stack-name }}
+        INPUT_PARAMETERS_FILE: ${{ inputs.parameters-file }}
+        INPUT_OUTPUT_FILE: ${{ inputs.output-file }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/changeset.sh"

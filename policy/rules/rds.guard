@@ -1,0 +1,23 @@
+#
+# Databases: a delete or a replacement must leave a final snapshot behind.
+# Aurora cluster members are skipped because the cluster owns the data.
+#
+let rds_instances = Resources.*[
+    Type == 'AWS::RDS::DBInstance'
+    Properties.DBClusterIdentifier !exists
+]
+let rds_clusters = Resources.*[ Type == 'AWS::RDS::DBCluster' ]
+
+rule RDS_INSTANCE_SNAPSHOT_POLICY when %rds_instances !empty {
+    %rds_instances {
+        DeletionPolicy == 'Snapshot' <<RDS instances need DeletionPolicy Snapshot>>
+        UpdateReplacePolicy == 'Snapshot' <<RDS instances need UpdateReplacePolicy Snapshot>>
+    }
+}
+
+rule RDS_CLUSTER_SNAPSHOT_POLICY when %rds_clusters !empty {
+    %rds_clusters {
+        DeletionPolicy == 'Snapshot' <<Aurora clusters need DeletionPolicy Snapshot>>
+        UpdateReplacePolicy == 'Snapshot' <<Aurora clusters need UpdateReplacePolicy Snapshot>>
+    }
+}

@@ -1,0 +1,28 @@
+#
+# Network: admin ports (22 SSH, 3389 RDP) are never open to the internet.
+#
+let security_groups = Resources.*[
+    Type == 'AWS::EC2::SecurityGroup'
+    Properties.SecurityGroupIngress exists
+]
+let ingress_rules = Resources.*[ Type == 'AWS::EC2::SecurityGroupIngress' ]
+
+rule NO_OPEN_ADMIN_PORTS_INLINE when %security_groups !empty {
+    %security_groups.Properties.SecurityGroupIngress[*] {
+        when CidrIp == '0.0.0.0/0' or CidrIpv6 == '::/0' {
+            IpProtocol != '-1' <<Security group opens all traffic to the internet>>
+            FromPort > 22 or ToPort < 22 <<Security group opens SSH (22) to the internet>>
+            FromPort > 3389 or ToPort < 3389 <<Security group opens RDP (3389) to the internet>>
+        }
+    }
+}
+
+rule NO_OPEN_ADMIN_PORTS_STANDALONE when %ingress_rules !empty {
+    %ingress_rules.Properties {
+        when CidrIp == '0.0.0.0/0' or CidrIpv6 == '::/0' {
+            IpProtocol != '-1' <<Ingress rule opens all traffic to the internet>>
+            FromPort > 22 or ToPort < 22 <<Ingress rule opens SSH (22) to the internet>>
+            FromPort > 3389 or ToPort < 3389 <<Ingress rule opens RDP (3389) to the internet>>
+        }
+    }
+}

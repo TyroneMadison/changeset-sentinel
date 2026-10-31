@@ -1,0 +1,129 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  changeset-sentinel bootstrap. GitHub OIDC trust plus a review-only IAM role:
+  it can create, describe and delete change sets and call one Claude model on
+  Bedrock. It cannot execute change sets or touch stacks outside the prefix.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Default: TyroneMadison
+    Description: GitHub user or organization that owns the calling repository.
+  GitHubRepo:
+    Type: String
+    Default: changeset-sentinel
+    Description: Repository allowed to assume the role on pull_request events.
+  StackNamePrefix:
+    Type: String
+    Default: sentinel-
+    AllowedPattern: ^[A-Za-z][A-Za-z0-9-]*$
+    Description: The role may only create change sets for stacks starting with this prefix.
+  ExistingOidcProviderArn:
+    Type: String
+    Default: ""
+    Description: Leave empty to create the GitHub OIDC provider. Set it if the account already has one.
+  BedrockInferenceProfileId:
+    Type: String
+    Default: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+    Description: Cross-region inference profile used by the review.
+  BedrockFoundationModelId:
+    Type: String
+    Default: anthropic.claude-sonnet-4-5-20250929-v1:0
+    Description: Base model behind the inference profile.
+  Environment:
+    Type: String
+    Default: dev
+  CostCenter:
+    Type: String
+    Default: platform
+
+Conditions:
+  CreateOidcProvider: !Equals [!Ref ExistingOidcProviderArn, ""]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  SentinelReviewRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: changeset-sentinel review role. Change set review and Bedrock only.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: GitHubPullRequestsOnly
+            Effect: Allow
+            Principal:
+              Federated: !If [CreateOidcProvider, !Ref GitHubOidcProvider, !Ref ExistingOidcProviderArn]
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:pull_request
+      Policies:
+        - PolicyName: change-set-review
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReviewChangeSetsInPrefix
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
+                Resource:
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${StackNamePrefix}*/*
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:changeSet/sentinel-*/*
+              - Sid: ValidateTemplateHasNoResourceScope
+                Effect: Allow
+                Action: cloudformation:ValidateTemplate
+                Resource: "*"
+              - Sid: NeverExecuteOrMutateStacks
+                Effect: Deny
+                Action:
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:ContinueUpdateRollback
+                  - cloudformation:SetStackPolicy
+                Resource: "*"
+        - PolicyName: bedrock-review-model
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: InvokeOneClaudeModel
+                Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource:
+                  - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockInferenceProfileId}
+                  - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/${BedrockFoundationModelId}
+      Tags:
+        - { Key: Project, Value: changeset-sentinel }
+        - { Key: Owner, Value: TyroneMadison }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+Outputs:
+  RoleArn:
+    Description: Pass this to the reusable workflow as role-to-assume.
+    Value: !GetAtt SentinelReviewRole.Arn
+  OidcProviderArn:
+    Value: !If [CreateOidcProvider, !Ref GitHubOidcProvider, !Ref ExistingOidcProviderArn]

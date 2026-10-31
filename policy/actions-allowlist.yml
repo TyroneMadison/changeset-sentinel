@@ -1,0 +1,25 @@
+# Approved GitHub Actions for this organization.
+#
+# Every `uses:` reference in workflows and composite actions must match an entry
+# below AND be pinned. Unknown actions fail the check, which keeps third party
+# code out of pipelines that hold cloud credentials.
+#
+# pinning:
+#   tag-or-sha  version tags (v4, v4.1.2, 0.28.0) or a full 40 character commit SHA
+#   sha         full commit SHA only (strictest, recommended for production orgs)
+pinning: tag-or-sha
+allow_local: true     # ./path composite actions inside the same repository
+allow_docker: false   # docker:// images bypass the review, keep them off
+
+allowed:
+  # First party GitHub actions
+  - actions/checkout
+  - actions/setup-python
+  - actions/upload-artifact
+  - actions/download-artifact
+  # AWS official
+  - aws-actions/configure-aws-credentials
+  # Scanners
+  - aquasecurity/trivy-action
+  # This project (reusable workflow and composite actions)
+  - TyroneMadison/changeset-sentinel
