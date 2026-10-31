@@ -1,0 +1,104 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    name: Unit tests and offline demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-dev.txt -e .
+      - run: pytest
+      - name: Offline demo against recorded change sets
+        run: |
+          python -m sentinel demo --scenarios examples/scenarios --out out | tee demo.txt
+          {
+            echo "## Offline demo"
+            echo '```'
+            cat demo.txt
+            echo '```'
+            cat out/02-rds-engine-change.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  iac:
+    name: CloudFormation lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-dev.txt
+      - run: >-
+          cfn-lint bootstrap/*.yaml examples/demo-stack/template.yaml
+          examples/scenarios/*/template.yaml templates/new-service/infra/template.yaml
+
+  guard:
+    name: cfn-guard policy rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install cfn-guard
+        run: cargo install cfn-guard --version 3.2.1 --locked --quiet
+      - name: Compliant templates pass
+        run: make guard
+      - name: Insecure scenarios are caught
+        run: make guard-negative
+
+  scan:
+    name: Checkov IaC scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "checkov==3.4.0"
+      - run: checkov --config-file .checkov.yaml
+
+  allowlist:
+    name: Actions allowlist (dogfooding)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e .
+      - run: >-
+          python -m sentinel allowlist --policy policy/actions-allowlist.yml
+          .github/workflows actions templates

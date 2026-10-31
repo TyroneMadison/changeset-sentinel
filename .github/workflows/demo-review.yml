@@ -1,0 +1,28 @@
+name: demo-review
+
+# Live dogfooding: reviews changes to the demo stack on pull requests.
+# Dormant until the repository variable SENTINEL_ROLE_ARN is set (docs/DEPLOY.md step 4).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - examples/demo-stack/**
+
+permissions: {}
+
+jobs:
+  sentinel:
+    if: ${{ vars.SENTINEL_ROLE_ARN != '' }}
+    uses: ./.github/workflows/sentinel-review.yml
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      issues: read
+    with:
+      template-path: examples/demo-stack/template.yaml
+      parameters-file: examples/demo-stack/parameters.json
+      stack-name: sentinel-demo-app
+      role-to-assume: ${{ vars.SENTINEL_ROLE_ARN }}
+      risk-threshold: HIGH

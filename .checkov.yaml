@@ -1,0 +1,18 @@
+# Checkov configuration for CI. Every skip carries a written justification.
+directory:
+  - .
+framework:
+  - cloudformation
+  - github_actions
+compact: true
+quiet: true
+skip-download: true
+# Resource level skips live next to the resource as Metadata.checkov.skip with a
+# comment explaining the trade-off (demo cost, SSE-SQS not recognized, and so on).
+skip-path:
+  # Intentionally insecure fixtures: these templates exist to prove the reviewer
+  # catches open SSH, admin wildcards and hardcoded secrets.
+  - examples/scenarios
+  # Python tests and generated reports hold no infrastructure.
+  - tests
+  - out
